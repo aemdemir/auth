@@ -1,0 +1,33 @@
+{{define "subject"}}Welcome to Example Server!{{end}}
+
+{{define "textBody"}}
+Hi,
+
+Please use below code to verify your email address and complete your registration.
+
+{{.Code}}
+
+Thanks,
+
+Example Server
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+
+<body>
+    <p>Hi,</p>
+    <p>Please use below code to verify your email address and complete your registration.</p>
+    <p style="color: #00cd00;">{{.Code}}</p>
+    <p>Thanks,</p>
+    <p>Example Server</p>
+</body>
+
+</html>
+{{end}}

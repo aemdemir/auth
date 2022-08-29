@@ -96,6 +96,5 @@ func (h *Handler) RequireUser(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next.ServeHTTP(w, r)
 	}
-
 	return h.authenticate(fn)
 }

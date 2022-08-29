@@ -441,12 +441,12 @@ func (h *Handler) SetRoutes(r *mux.Router) {
 
 	// email
 	r.HandleFunc("/api/v1/emails", h.RequireUser(h.AddEmail)).Methods("POST")
-	r.HandleFunc("/api/v1/emails/primary", h.RequireUser(h.UpdatePrimaryEmail)).Methods("PUT")
+	r.HandleFunc("/api/v1/emails/primary", h.RequireUser(h.UpdatePrimaryEmail)).Methods("PATCH")
 
 	// user
 	r.HandleFunc("/api/v1/users/me/settings", h.RequireUser(h.GetUserSettings)).Methods("GET")
-	r.HandleFunc("/api/v1/users/me/username", h.RequireUser(h.UpdateUsername)).Methods("PUT")
-	r.HandleFunc("/api/v1/users/me/password", h.RequireUser(h.UpdatePassword)).Methods("PUT")
+	r.HandleFunc("/api/v1/users/me/username", h.RequireUser(h.UpdateUsername)).Methods("PATCH")
+	r.HandleFunc("/api/v1/users/me/password", h.RequireUser(h.UpdatePassword)).Methods("PATCH")
 }
 
 //

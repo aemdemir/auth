@@ -44,10 +44,27 @@ type Tx struct {
 	now time.Time
 }
 
+func (tx *Tx) WithSavepoint(ctx context.Context, fnx func(tx *Tx) error) error {
+	_, err := tx.ExecContext(ctx, "SAVEPOINT sp")
+	if err != nil {
+		return err
+	}
+	defer tx.ExecContext(ctx, "RELEASE SAVEPOINT sp")
+
+	if err := fnx(tx); err != nil {
+		tx.ExecContext(ctx, "ROLLBACK TO SAVEPOINT sp")
+		return err
+	}
+	return nil
+}
+
 type DBTX interface {
+	// sqlx
 	GetContext(ctx context.Context, dest any, query string, args ...any) error
 	SelectContext(ctx context.Context, dest any, query string, args ...any) error
 	NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
-
+	BindNamed(query string, arg any) (string, []any, error)
+	// sql
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }

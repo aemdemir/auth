@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/aemdemir/auth"
-	driver "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgconn"
 )
 
 //
@@ -28,7 +28,7 @@ func getAccountsByUser(ctx context.Context, dbx DBTX, id int) ([]dbAccount, erro
 		provider_user_id, 
 		created 
 	FROM  user_account 
-	WHERE user_id = ?
+	WHERE user_id = $1
 	`
 
 	a := []dbAccount{}
@@ -62,9 +62,9 @@ func insertAccount(ctx context.Context, dbx DBTX, in dbAccountInsert) error {
 
 	_, err := dbx.NamedExecContext(ctx, query, a)
 	if err != nil {
-		var mysqlErr *driver.MySQLError
+		var dbErr *pgconn.PgError
 		switch {
-		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+		case errors.As(err, &dbErr) && dbErr.Code == "23505":
 			return &auth.Error{Code: auth.EUNPROCESSABLE, Message: "duplicate oauth account"}
 		default:
 			return err

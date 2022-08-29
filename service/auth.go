@@ -633,10 +633,14 @@ func createOAuthUser(ctx context.Context, tx *Tx, signin auth.SigninSocialInput)
 	}
 
 	if signin.Email.Valid {
-		err := insertEmail(ctx, tx, dbEmailInsert{
-			UserID:  uid,
-			Address: signin.Email.String,
-			Primary: signin.IsPrimaryEmail(true),
+		// it's ok to skip duplicate email error here.
+		// but that breaks the transaction. therefore use a savepoint.
+		err := tx.WithSavepoint(ctx, func(tx *Tx) error {
+			return insertEmail(ctx, tx, dbEmailInsert{
+				UserID:  uid,
+				Address: signin.Email.String,
+				Primary: signin.IsPrimaryEmail(true),
+			})
 		})
 		if err != nil && auth.ErrorCode(err) != auth.EUNPROCESSABLE { // EUNPROCESSABLE maps to duplicate
 			return -1, err

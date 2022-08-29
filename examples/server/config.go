@@ -128,7 +128,7 @@ func newLogger(c appconfig) (*logwrap, error) {
 }
 
 func newDB(c appconfig) (*sqlx.DB, error) {
-	db, err := sqlx.Connect("mysql", c.dbdsn)
+	db, err := sqlx.Connect("pgx", c.dbdsn)
 	if err != nil {
 		return nil, err
 	}

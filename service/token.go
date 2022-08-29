@@ -36,7 +36,7 @@ func getToken(ctx context.Context, dbx DBTX, hash []byte, scope string) (*dbToke
 		created,
 		updated
 	FROM  token
-	WHERE hash = ? AND scope = ? 
+	WHERE hash = $1 AND scope = $2
 	`
 
 	t := dbToken{}
@@ -87,21 +87,21 @@ func insertToken(ctx context.Context, dbx DBTX, in dbTokenInsert) error {
 }
 
 func deleteToken(ctx context.Context, dbx DBTX, hash []byte) error {
-	query := `DELETE FROM token WHERE hash = ?`
+	query := `DELETE FROM token WHERE hash = $1`
 
 	_, err := dbx.ExecContext(ctx, query, hash)
 	return err
 }
 
 func deleteTokensByUser(ctx context.Context, dbx DBTX, id int) error {
-	query := `DELETE FROM token WHERE user_id = ?`
+	query := `DELETE FROM token WHERE user_id = $1`
 
 	_, err := dbx.ExecContext(ctx, query, id)
 	return err
 }
 
 func deleteTokensByUserAndScope(ctx context.Context, dbx DBTX, id int, scope string) error {
-	query := `DELETE FROM token WHERE user_id = ? AND scope = ?`
+	query := `DELETE FROM token WHERE user_id = $1 AND scope = $2`
 
 	_, err := dbx.ExecContext(ctx, query, id, scope)
 	return err

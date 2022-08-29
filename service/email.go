@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aemdemir/auth"
-	driver "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgconn"
 )
 
 //
@@ -33,7 +33,7 @@ func getEmail(ctx context.Context, dbx DBTX, address string) (*dbEmail, error) {
 		created, 
 		updated
 	FROM  user_email
-	WHERE address = ?
+	WHERE address = $1
 	`
 
 	e := dbEmail{}
@@ -60,7 +60,7 @@ func getEmailByUser(ctx context.Context, dbx DBTX, id int) (*dbEmail, error) {
 		created, 
 		updated
 	FROM  user_email
-	WHERE user_id = ?
+	WHERE user_id = $1
 	`
 
 	e := dbEmail{}
@@ -90,14 +90,7 @@ func getEmailByValidToken(ctx context.Context, dbx DBTX, hash []byte, scope stri
 	WHERE address = (
 		SELECT payload 
 		FROM   token 
-		WHERE
-			hash = ? 
-			AND 
-			scope = ? 
-			AND 
-			revoked = false 
-			AND 
-			expiry > ?
+		WHERE  hash = $1 AND scope = $2 AND revoked = false AND expiry > $3
 	)
 	`
 
@@ -125,7 +118,7 @@ func getEmailsByUser(ctx context.Context, dbx DBTX, id int) ([]dbEmail, error) {
 		created, 
 		updated
 	FROM  user_email 
-	WHERE user_id = ?
+	WHERE user_id = $1
 	`
 
 	e := []dbEmail{}
@@ -159,9 +152,9 @@ func insertEmail(ctx context.Context, dbx DBTX, in dbEmailInsert) error {
 
 	_, err := dbx.NamedExecContext(ctx, query, e)
 	if err != nil {
-		var mysqlErr *driver.MySQLError
+		var dbErr *pgconn.PgError
 		switch {
-		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+		case errors.As(err, &dbErr) && dbErr.Code == "23505":
 			return &auth.Error{Code: auth.EUNPROCESSABLE, Message: "duplicate email address"}
 		default:
 			return err
@@ -200,7 +193,7 @@ func resetPrimaryEmail(ctx context.Context, dbx DBTX, userID int) error {
 	query := `
 	UPDATE user_email
 	SET    is_primary = false
-	WHERE  user_id = ?
+	WHERE  user_id = $1
 	`
 
 	_, err := dbx.ExecContext(ctx, query, userID)

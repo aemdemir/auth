@@ -16,8 +16,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 
-	// mysql driver
-	_ "github.com/go-sql-driver/mysql"
+	// postgresql driver
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 func main() {

@@ -18,7 +18,7 @@ EXAMPLE_LOG_DIR=./logs
 EXAMPLE_LOG_FILE_NAME=app.log
 EXAMPLE_LOG_FILE_MAX_SIZE=100
 EXAMPLE_LOG_LEVEL=debug
-EXAMPLE_DB_DSN=root:1@tcp(localhost:3306)/example?parseTime=true
+EXAMPLE_DB_DSN=postgres://auth_example:1@localhost:5432/auth_example?sslmode=disable
 
 EXAMPLE_OAUTH_SECURE_COOKIE=false
 EXAMPLE_OAUTH_GOOGLE_CLIENT_ID=<client_id>
@@ -32,7 +32,7 @@ EXAMPLE_SMTP_USERNAME=<username>
 EXAMPLE_SMTP_PASSWORD=<password>
 EXAMPLE_SMTP_SENDER=Example <no-reply@example.com>
 
-MIGRATE_DB_DSN=mysql://root:1@tcp(localhost:3306)/example
+MIGRATE_DB_DSN=postgres://auth_example:1@localhost:5432/auth_example?sslmode=disable
 ```
 
 ### References

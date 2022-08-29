@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aemdemir/auth"
-	driver "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgconn"
 )
 
 //
@@ -36,8 +36,8 @@ func getUser(ctx context.Context, dbx DBTX, id int) (*dbUser, error) {
 		created,
 		updated,
 		password_hash
-	FROM  user
-	WHERE id = ?
+	FROM  users
+	WHERE id = $1
 	`
 
 	u := dbUser{}
@@ -65,9 +65,9 @@ func getUserByEmail(ctx context.Context, dbx DBTX, address string) (*dbUser, err
 		u.created,
 		u.updated,
 		u.password_hash
-	FROM  user       AS u
+	FROM  users      AS u
 	JOIN  user_email AS e ON u.id = e.user_id
-	WHERE e.address = ? 
+	WHERE e.address = $1
 	`
 
 	u := dbUser{}
@@ -95,9 +95,9 @@ func getUserByPrimaryEmail(ctx context.Context, dbx DBTX, address string) (*dbUs
 		u.created,
 		u.updated,
 		u.password_hash
-	FROM  user       AS u
+	FROM  users      AS u
 	JOIN  user_email AS e ON u.id = e.user_id
-	WHERE e.address = ? AND e.is_primary = true
+	WHERE e.address = $1 AND e.is_primary = true
 	`
 
 	u := dbUser{}
@@ -125,12 +125,9 @@ func getUserByAccount(ctx context.Context, dbx DBTX, providerName, providerUID s
 		u.created,
 		u.updated,
 		u.password_hash
-	FROM  user         AS u
+	FROM  users        AS u
 	JOIN  user_account AS a ON u.id = a.user_id
-	WHERE 
-		a.provider_name = ? 
-		AND 
-		a.provider_user_id = ?
+	WHERE a.provider_name = $1 AND a.provider_user_id = $2
 	`
 
 	u := dbUser{}
@@ -158,16 +155,9 @@ func getUserByValidToken(ctx context.Context, dbx DBTX, hash []byte, scope strin
 		u.created,
 		u.updated,
 		u.password_hash
-	FROM  user  AS u
+	FROM  users AS u
 	JOIN  token AS t ON  u.id = t.user_id
-	WHERE 
-		t.hash = ? 
-		AND 
-		t.scope = ? 
-		AND 
-		t.revoked = false 
-		AND 
-		t.expiry > ?
+	WHERE t.hash = $1 AND t.scope = $2 AND t.revoked = false AND t.expiry > $3
 	`
 
 	u := dbUser{}
@@ -192,13 +182,14 @@ type dbUserInsert struct {
 
 func insertUser(ctx context.Context, dbx DBTX, in dbUserInsert) (int, error) {
 	query := `
-	INSERT INTO user 
+	INSERT INTO users 
 	(
 		username,
 		name,
 		password_hash
 	)
-	VALUES (:username, :name, :password_hash)
+	VALUES    (:username, :name, :password_hash)
+	RETURNING id
 	`
 
 	u := dbUser{
@@ -207,21 +198,22 @@ func insertUser(ctx context.Context, dbx DBTX, in dbUserInsert) (int, error) {
 		PasswordHash: in.PasswordHash,
 	}
 
-	res, err := dbx.NamedExecContext(ctx, query, u)
+	query, args, err := dbx.BindNamed(query, u)
 	if err != nil {
-		var mysqlErr *driver.MySQLError
+		return -1, err
+	}
+
+	var id int
+	if err := dbx.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
+		var dbErr *pgconn.PgError
 		switch {
-		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+		case errors.As(err, &dbErr) && dbErr.Code == "23505":
 			return -1, &auth.Error{Code: auth.EUNPROCESSABLE, Message: "duplicate username"}
 		default:
 			return -1, err
 		}
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return -1, &auth.Error{Code: auth.EINTERNAL, Message: "cant fetch last inserted id"}
-	}
-	return int(id), nil
+	return id, nil
 }
 
 type dbUserUpdate struct {
@@ -233,14 +225,13 @@ type dbUserUpdate struct {
 
 func updateUser(ctx context.Context, dbx DBTX, up dbUserUpdate) error {
 	query := `
-	UPDATE user
+	UPDATE users
 	SET
 		username      = :username,
 		password_hash = :password_hash,
 		version       = version + 1
-	WHERE 
-		id      = :id AND 
-		version = :version
+	WHERE     id = :id AND version = :version
+	RETURNING version
 	`
 
 	u := dbUser{
@@ -250,18 +241,22 @@ func updateUser(ctx context.Context, dbx DBTX, up dbUserUpdate) error {
 		PasswordHash: up.PasswordHash,
 	}
 
-	res, err := dbx.NamedExecContext(ctx, query, u)
+	query, args, err := dbx.BindNamed(query, u)
 	if err != nil {
-		var mysqlErr *driver.MySQLError
+		return err
+	}
+
+	var version int
+	if err := dbx.QueryRowContext(ctx, query, args...).Scan(&version); err != nil {
+		var dbErr *pgconn.PgError
 		switch {
-		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+		case errors.As(err, &dbErr) && dbErr.Code == "23505":
 			return &auth.Error{Code: auth.EUNPROCESSABLE, Message: "duplicate username"}
+		case errors.Is(err, sql.ErrNoRows):
+			return &auth.Error{Code: auth.ECONFLICT, Message: "unable to update user due to an edit conflict"}
 		default:
 			return err
 		}
-	}
-	if ra, err := res.RowsAffected(); err == nil && ra == 0 {
-		return &auth.Error{Code: auth.ECONFLICT, Message: "unable to update user due to an edit conflict"}
 	}
 	return nil
 }
